@@ -1,0 +1,30 @@
+class Flight {
+    String flDate; // 航班日期
+    String mkCarrier; // 航空公司代码
+    int mkCarrierFlNum; // 航班号
+    String origin; // 起飞机场代码
+    String dest; // 目的地机场代码
+    int distance; // 航程距离
+
+    // 构造函数
+    Flight(String flDate, String mkCarrier, int mkCarrierFlNum, String origin, String dest, int distance) {
+        this.flDate = flDate;
+        this.mkCarrier = mkCarrier;
+        this.mkCarrierFlNum = mkCarrierFlNum;
+        this.origin = origin;
+        this.dest = dest;
+        this.distance = distance;
+    }
+
+    // 打印航班信息
+    void display() {
+        println("Flight Date: " + flDate);
+        println("Carrier: " + mkCarrier);
+        println("Flight Number: " + mkCarrierFlNum);
+        println("Origin: " + origin);
+        println("Destination: " + dest);
+        println("Distance: " + distance + " miles");
+        println("----------------------------");
+    }
+}
+
