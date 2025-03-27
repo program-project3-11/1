@@ -1,3 +1,4 @@
+// Class Flight: Store Flights Data
 class Flight {
   String date, airline, flightNum, origin, originCity, originState;
   String dest, destCity, destState;
@@ -24,7 +25,7 @@ class Flight {
     diverted   = int(float(data[16]));
     distance   = int(float(data[17]));
 
-    // 状态判断
+    // Lateness Judgement
     if (cancelled == 1) {
       status = "Cancelled";
     } else if (getDelayMinutes() >= 60) {
@@ -58,48 +59,51 @@ class Flight {
 }
 
 
-//main
+// -----------------------------------------------------
+// Main
+// -----------------------------------------------------
+// Section 1: Declarations, Setups and Data Loading
+// -----------------------------------------------------
 ArrayList<Flight> flights;
-int rowsPerPage = 5;  // 每页显示的航班数
-int currentPage = 0;  // 当前页索引
-int totalPages;       // 总页数
-int page = 1;         // 当前显示的页面 (1=搜索,2=详情,3=相关,4=热力图,5=航线图)
+int rowsPerPage = 5;  // Number of lines of flight information displayed per page
+int currentPage = 0;  // Current page index
+int totalPages;       // Total page numbers
+int page = 1;         // Page currently displayed (1= Search,2= Details,3= Related,4= Heat map,5= Route map)
 
-// 航班状态按钮
+// Lateness Filter Buttons
 boolean onTimeSelected = false;   
 boolean delayedSelected = false;  
 boolean cancelledSelected = false; 
 
-// 搜索框文本和焦点状态
+// Search bar text and status
 String inputText1 = "";  // Origin
 String inputText2 = "";  // Destination
 boolean isTyping1 = false;  
 boolean isTyping2 = false;
-String inputText3 = "";  // Fly Date Range (起始日期)
-String inputText4 = "";  // Arrive Date Range (结束日期)
+String inputText3 = "";  // Departure Date Range 
+String inputText4 = "";  // Arrive Date Range 
 boolean isTyping3 = false;  
 boolean isTyping4 = false;
 
-// 图表按钮
+// Visualization Buttons
 boolean heatmapSelected = false;
 boolean routeMapSelected = false;
 
 PImage routeMapImage, heatMapImage;
-Flight selectedFlight = null; // 选中的航班
+Flight selectedFlight = null; 
 
-// -----------------------------------------------------
-// setup() / draw()
-// -----------------------------------------------------
+
 void setup() {
   size(800, 600);
   flights = new ArrayList<Flight>();
   loadFlightData("flights100k.csv");
   fill(255);
   textSize(14);
-  // 计算总页数
+
+  // Calculating total page numbers
   totalPages = (int) ceil(flights.size() / (float) rowsPerPage);
 
-  // 加载图像文件
+  // Loading images
   routeMapImage = loadImage("Route Map.png");
   heatMapImage = loadImage("Heat Map.png");
 }
@@ -120,34 +124,296 @@ void draw() {
 }
 
 // -----------------------------------------------------
-// Page1：搜索界面
+// Loading .csv File
+// -----------------------------------------------------
+void loadFlightData(String filename) {
+  try {
+    String[] lines = loadStrings(filename);
+    if (lines == null || lines.length < 2) {
+      println("Error loading file or empty dataset.");
+      return;
+    }
+    for (int i = 1; i < lines.length; i++) {
+      String[] cols = split(lines[i], ',');
+      if (cols.length >= 18) {
+        flights.add(new Flight(cols));
+      }
+    }
+  } catch (Exception e) {
+    println("Error loading flight data: " + e.getMessage());
+  }
+}
+
+// -----------------------------------------------------
+// Section 2: Interface
+// -----------------------------------------------------
+// Public method: Draw a translucent panel
+// -----------------------------------------------------
+void drawPanel(int x, int y, int w, int h, String title) {
+  fill(255, 255, 255, 180);
+  rect(x, y, w, h, 15);
+  fill(0);
+  textSize(22);
+  textAlign(LEFT);
+  text(title, x + 20, y + 30);
+}
+
+// -----------------------------------------------------
+// Public method: Draw an interactive button
+// -----------------------------------------------------
+boolean drawInteractiveButton(int x, int y, String label) {
+  float tw = textWidth(label);
+  float buttonWidth = tw + 20;
+  
+  fill(255);
+  rect(x, y - 20, buttonWidth, 30, 8);
+  stroke(0);
+  strokeWeight(1);
+  noFill();
+  rect(x, y - 20, buttonWidth, 30, 8);
+  noStroke();
+  
+  fill(0);
+  textAlign(LEFT, CENTER);
+  text(label, x + 10, y - 5);
+
+  // click detection
+  if (mouseX > x && mouseX < x + 250 && mouseY > y - 20 && mouseY < y + 10 && mousePressed) {
+    return true;
+  }
+  return false;
+}
+
+
+// -----------------------------------------------------
+// Public method: Draw a toggle button (white and grey toggle)
+// -----------------------------------------------------
+boolean drawToggleButton(int x, int y, String label, boolean selected) {
+  int buttonWidth = 100;
+  int buttonHeight = 30;
+
+  if (selected) {
+    fill(150); // selected
+  } else if (mouseX > x && mouseX < x + buttonWidth && mouseY > y && mouseY < y + buttonHeight) {
+    fill(200); // mouse hover
+  } else {
+    fill(255); // default
+  }
+
+  rect(x, y, buttonWidth, buttonHeight, 8);
+  fill(0);
+  textAlign(CENTER, CENTER);
+  text(label, x + buttonWidth / 2, y + buttonHeight / 2);
+
+  return selected; 
+}
+
+
+// -----------------------------------------------------
+// Draw search criteria
+// -----------------------------------------------------
+void drawSearchCriteria() {
+  fill(0);
+  textSize(20);
+  text("Airport", 80, 140);
+  text("Origin:", 80, 165);
+  text("Destination:", 80, 190);
+
+  // Input box 1（Origin）Input box 2（Destination）
+  drawSearchBar(240, 160, 250, 30, inputText1, isTyping1);
+  drawSearchBar(240, 195, 250, 30, inputText2, isTyping2);
+
+  text("Date Range", 80, 230);
+  text("Fly Date Range:", 80, 255);
+  text("Arrive Date Range:", 80, 280);
+
+  // Flights lateness buttons & Date input box
+  text("Flight", 80, 330);
+  text("Chart", 520, 330);
+  drawLatenessButtons();
+
+  drawSearchBar(240, 250, 250, 30, inputText3, isTyping3);  // Start date
+  drawSearchBar(240, 285, 250, 30, inputText4, isTyping4);  // End date
+
+  drawChartButtons();
+}
+
+
+// -----------------------------------------------------
+// Draw search criteria input boxs
+// -----------------------------------------------------
+void drawSearchBar(int x, int y, int w, int h, String inputText, boolean isTyping) {
+  fill(255);
+  // If clicked, invoke input mode
+  if (mouseX > x && mouseX < x + w && mouseY > y - 20 && mouseY < y + h && mousePressed) {
+    isTyping = true;
+  }
+  if (mouseX > x && mouseX < x + w && mouseY > y - 20 && mouseY < y + h) {
+    stroke(255, 0, 0);
+    strokeWeight(2);
+    if (mousePressed && !isTyping) {
+      inputText = "";
+      isTyping = true;
+    }
+  } else {
+    stroke(0);
+    strokeWeight(1);
+  }
+  rect(x, y - 20, w, h, 8);
+  noStroke();
+
+  fill(0);
+  textSize(16);
+  textAlign(LEFT, CENTER);
+  if (isTyping) {
+    text(inputText, x + 10, y);
+  } else {
+    text(inputText.isEmpty() ? "Enter text" : inputText, x + 10, y);
+  }
+}
+
+// -----------------------------------------------------
+// Draw visualisation buttons
+// -----------------------------------------------------
+void drawChartButtons() {
+  drawToggleButton(520, 350, "Heatmap", heatmapSelected); 
+  drawToggleButton(640, 350, "Route Map", routeMapSelected);
+}
+
+// -----------------------------------------------------
+// Draw lateness buttons
+// -----------------------------------------------------
+void drawLatenessButtons() {
+  textSize(16);
+  // Detect if a click occurs
+  drawToggleButton(80, 350, "On-time", onTimeSelected);
+  drawToggleButton(200, 350, "Delayed", delayedSelected);
+  drawToggleButton(320, 350, "Cancelled", cancelledSelected);
+}
+
+String updateStatus(boolean onTimeSelected, boolean delayedSelected, boolean cancelledSelected) {
+  if (onTimeSelected) return "On-time";
+  if (delayedSelected) return "Delayed";
+  if (cancelledSelected) return "Cancelled";
+  return "Unknown";
+}
+
+
+// -----------------------------------------------------
+// Draw flights information list
+// -----------------------------------------------------
+void drawFlightInformation() {
+  fill(0);
+  textSize(16);
+  textAlign(LEFT);
+
+  // Get filtered flight list
+  ArrayList<Flight> filteredFlights = getFilteredFlights();
+  totalPages = (int) ceil(filteredFlights.size() / (float) rowsPerPage);
+
+  int start = currentPage * rowsPerPage;
+  int end = min(start + rowsPerPage, filteredFlights.size());
+
+  float panelX = 50;
+  float panelWidth = 700;
+  float padding = 10;
+
+  for (int i = start; i < end; i++) {
+    Flight flight = filteredFlights.get(i);
+    String[] fields = flight.toArray();
+
+    float x = panelX + padding;
+    float y = 430 + (i - start) * 25; // Set the interval between each row to 25
+    float w = panelWidth - 2 * padding;
+
+    // Highlight when mouse hover
+    if (mouseX > x && mouseX < x + w && mouseY > y - 20 && mouseY < y + 10) {
+      fill(200);
+      rect(x, y - 20, w, 30, 8);
+      fill(0);
+      for (int e = 0; e < fields.length; e++) {
+        text(fields[e], x + e * 150, y - 5);
+      }
+      // If click, go to the details page
+      if (mousePressed) {
+        selectedFlight = flight;
+        page = 2;
+      }
+    } else {
+      fill(0);
+      for (int e = 0; e < fields.length; e++) {
+        text(fields[e], x + e * 150, y - 5);
+      }
+    }
+  }
+}
+
+// -----------------------------------------------------
+// Draw page flipping buttons
+// -----------------------------------------------------
+void drawPaginationButtons() {
+  fill(255, 165, 0);
+  // Previous Page
+  if (currentPage > 0) {
+    rect(50, 560, 120, 30, 8);
+    fill(0);
+    textSize(16);
+    textAlign(CENTER, CENTER);
+    text("Previous Page", 110, 578);
+  }
+
+  // Next Page
+  if (currentPage < totalPages - 1) {
+    fill(255, 165, 0);
+    rect(630, 560, 120, 30, 8);
+    fill(0);
+    textSize(16);
+    textAlign(CENTER, CENTER);
+    text("Next Page", 690, 578);
+  }
+}
+
+
+// -----------------------------------------------------
+// Draw back button
+// -----------------------------------------------------
+void drawBackButton() {
+  fill(255, 165, 0);
+  rect(50, height - 80, 100, 40, 8);
+  fill(0);
+  textSize(20);
+  textAlign(CENTER, CENTER);
+  text("Back", 100, height - 60);
+}
+
+// -----------------------------------------------------
+// Page1：Homepage
 // -----------------------------------------------------
 void drawPage1() {
   fill(255);
   textSize(36);
   textAlign(CENTER);
-  text("Flight Research", width / 2, 50);
+  text("Flights Information Inquiry", width / 2, 50);
 
-  // 搜索面板
+  // Search panel
   drawPanel(50, 80, 700, 310, "Search Criteria");
   drawSearchCriteria();
 
-  // 航班列表面板
+  // Flights information panel
   drawPanel(50, 400, 700, 150, "");
   drawFlightInformation();
   drawPaginationButtons();
 }
 
 // -----------------------------------------------------
-// Page2：航班详情
+// Page2：Flights Details
 // -----------------------------------------------------
 void drawPage2() {
-  // 浅蓝色背景方块
   fill(255, 255, 255, 180);
   noStroke();
   rect(50, 80, width - 100, height - 170, 20);
 
-  // 主标题
+  // Title
   fill(255);
   textSize(32);
   textAlign(CENTER);
@@ -212,7 +478,7 @@ void drawPage2() {
 }
 
 // -----------------------------------------------------
-// Page3：示例的“相关信息”页面
+// Page3：Related Flight Information
 // -----------------------------------------------------
 void drawPage3() {
   fill(255);
@@ -223,7 +489,7 @@ void drawPage3() {
 }
 
 // -----------------------------------------------------
-// Page4：热力图页面
+// Page4：Heat Map
 // -----------------------------------------------------
 void drawPage4() {
   fill(255);
@@ -241,7 +507,7 @@ void drawPage4() {
 }
 
 // -----------------------------------------------------
-// Page5：航线图页面
+// Page5：Routes Map
 // -----------------------------------------------------
 void drawPage5() {
   fill(255);
@@ -259,248 +525,37 @@ void drawPage5() {
 }
 
 // -----------------------------------------------------
-// 绘制搜索条件区域
+// Section 3: Mouse logics
 // -----------------------------------------------------
-void drawSearchCriteria() {
-  fill(0);
-  textSize(20);
-  text("Airport", 80, 140);
-  text("Origin:", 80, 165);
-  text("Destination:", 80, 190);
-
-  // 输入框1（Origin）和输入框2（Destination）
-  drawSearchBar(240, 160, 250, 30, inputText1, isTyping1);
-  drawSearchBar(240, 195, 250, 30, inputText2, isTyping2);
-
-  text("Date Range", 80, 230);
-  text("Fly Date Range:", 80, 255);
-  text("Arrive Date Range:", 80, 280);
-
-  // 航班状态按钮 + 日期输入框
-  text("Flight", 80, 330);
-  text("Chart", 520, 330);
-  drawLatenessButtons();
-
-  drawSearchBar(240, 250, 250, 30, inputText3, isTyping3);  // 起始日期
-  drawSearchBar(240, 285, 250, 30, inputText4, isTyping4);  // 结束日期
-
-  drawChartButtons();
-}
-
-// -----------------------------------------------------
-// 绘制图表按钮
-// -----------------------------------------------------
-void drawChartButtons() {
-  drawToggleButton(520, 350, "Heatmap", heatmapSelected); 
-  drawToggleButton(640, 350, "Route Map", routeMapSelected);
-}
-
-// -----------------------------------------------------
-// 绘制航班状态按钮
-// -----------------------------------------------------
-void drawLatenessButtons() {
-  textSize(16);
-  // 用于检测是否发生点击
-  drawToggleButton(80, 350, "On-time", onTimeSelected);
-  drawToggleButton(200, 350, "Delayed", delayedSelected);
-  drawToggleButton(320, 350, "Cancelled", cancelledSelected);
-}
-
-String updateStatus(boolean onTimeSelected, boolean delayedSelected, boolean cancelledSelected) {
-  if (onTimeSelected) return "On-time";
-  if (delayedSelected) return "Delayed";
-  if (cancelledSelected) return "Cancelled";
-  return "Unknown";
-}
-
-// -----------------------------------------------------
-// 通用：绘制半透明面板
-// -----------------------------------------------------
-void drawPanel(int x, int y, int w, int h, String title) {
-  fill(255, 255, 255, 180);
-  rect(x, y, w, h, 15);
-  fill(0);
-  textSize(22);
-  textAlign(LEFT);
-  text(title, x + 20, y + 30);
-}
-
-// -----------------------------------------------------
-// 绘制航班列表
-// -----------------------------------------------------
-void drawFlightInformation() {
-  fill(0);
-  textSize(16);
-  textAlign(LEFT);
-
-  // 获取筛选后的航班列表
-  ArrayList<Flight> filteredFlights = getFilteredFlights();
-  totalPages = (int) ceil(filteredFlights.size() / (float) rowsPerPage);
-
-  int start = currentPage * rowsPerPage;
-  int end = min(start + rowsPerPage, filteredFlights.size());
-
-  float panelX = 50;
-  float panelWidth = 700;
-  float padding = 10;
-
-  for (int i = start; i < end; i++) {
-    Flight flight = filteredFlights.get(i);
-    String[] fields = flight.toArray();
-
-    float x = panelX + padding;
-    float y = 430 + (i - start) * 25; // 每行间隔25
-    float w = panelWidth - 2 * padding;
-
-    // 鼠标悬停高亮
-    if (mouseX > x && mouseX < x + w && mouseY > y - 20 && mouseY < y + 10) {
-      fill(200);
-      rect(x, y - 20, w, 30, 8);
-      fill(0);
-      for (int e = 0; e < fields.length; e++) {
-        text(fields[e], x + e * 150, y - 5);
-      }
-      // 如果点击则进入详情页面
-      if (mousePressed) {
-        selectedFlight = flight;
-        page = 2;
-      }
-    } else {
-      fill(0);
-      for (int e = 0; e < fields.length; e++) {
-        text(fields[e], x + e * 150, y - 5);
-      }
-    }
-  }
-}
-
-// -----------------------------------------------------
-// 绘制分页按钮
-// -----------------------------------------------------
-void drawPaginationButtons() {
-  fill(255, 165, 0);
-  // Previous
-  if (currentPage > 0) {
-    rect(50, 560, 120, 30, 8);
-    fill(0);
-    textSize(16);
-    textAlign(CENTER, CENTER);
-    text("Previous Page", 110, 578);
-  }
-
-  // Next
-  if (currentPage < totalPages - 1) {
-    fill(255, 165, 0);
-    rect(630, 560, 120, 30, 8);
-    fill(0);
-    textSize(16);
-    textAlign(CENTER, CENTER);
-    text("Next Page", 690, 578);
-  }
-}
-
-// -----------------------------------------------------
-// 绘制交互按钮（白色方块）
-// -----------------------------------------------------
-boolean drawInteractiveButton(int x, int y, String label) {
-  float tw = textWidth(label);
-  float buttonWidth = tw + 20;
-  
-  fill(255);
-  rect(x, y - 20, buttonWidth, 30, 8);
-  stroke(0);
-  strokeWeight(1);
-  noFill();
-  rect(x, y - 20, buttonWidth, 30, 8);
-  noStroke();
-  
-  fill(0);
-  textAlign(LEFT, CENTER);
-  text(label, x + 10, y - 5);
-
-  // 点击检测
-  if (mouseX > x && mouseX < x + 250 && mouseY > y - 20 && mouseY < y + 10 && mousePressed) {
-    return true;
-  }
-  return false;
-}
-
-// -----------------------------------------------------
-// 绘制切换按钮（灰白色切换）
-// -----------------------------------------------------
-boolean drawToggleButton(int x, int y, String label, boolean selected) {
-  int buttonWidth = 100;
-  int buttonHeight = 30;
-
-  if (selected) {
-    fill(150); // 激活状态
-  } else if (mouseX > x && mouseX < x + buttonWidth && mouseY > y && mouseY < y + buttonHeight) {
-    fill(200); // 鼠标悬停
-  } else {
-    fill(255); // 默认
-  }
-
-  rect(x, y, buttonWidth, buttonHeight, 8);
-  fill(0);
-  textAlign(CENTER, CENTER);
-  text(label, x + buttonWidth / 2, y + buttonHeight / 2);
-
-  return selected; // 注意：返回值仍然没变
-}
-
-
-// -----------------------------------------------------
-// 绘制输入框
-// -----------------------------------------------------
-void drawSearchBar(int x, int y, int w, int h, String inputText, boolean isTyping) {
-  fill(255);
-  // 如果点击框内则进入输入状态
-  if (mouseX > x && mouseX < x + w && mouseY > y - 20 && mouseY < y + h && mousePressed) {
-    isTyping = true;
-  }
-  if (mouseX > x && mouseX < x + w && mouseY > y - 20 && mouseY < y + h) {
-    stroke(255, 0, 0);
-    strokeWeight(2);
-    if (mousePressed && !isTyping) {
-      inputText = "";
-      isTyping = true;
-    }
-  } else {
-    stroke(0);
-    strokeWeight(1);
-  }
-  rect(x, y - 20, w, h, 8);
-  noStroke();
-
-  fill(0);
-  textSize(16);
-  textAlign(LEFT, CENTER);
-  if (isTyping) {
-    text(inputText, x + 10, y);
-  } else {
-    text(inputText.isEmpty() ? "Enter text" : inputText, x + 10, y);
-  }
-}
-
-// -----------------------------------------------------
-// 绘制返回按钮
-// -----------------------------------------------------
-void drawBackButton() {
-  fill(255, 165, 0);
-  rect(50, height - 80, 100, 40, 8);
-  fill(0);
-  textSize(20);
-  textAlign(CENTER, CENTER);
-  text("Back", 100, height - 60);
-}
-
-// -----------------------------------------------------
-// mouseReleased()：处理分页和按钮点击
+// mouseReleased(): Handles buttons click
 // -----------------------------------------------------
 void mouseReleased() {
-  // 热力图 / 分页等按钮逻辑...
-  
-  // 航班状态按钮区域：
+  // Buttons logic
+  if (mouseX > 50 && mouseX < 150 && mouseY > height - 80 && mouseY < height - 40) {
+    page = (page == 3) ? 2 : 1;
+  }
+
+  if (mouseX > 50 && mouseX < 170 && mouseY > 560 && mouseY < 590 && currentPage > 0) {
+    currentPage--;
+  }
+  if (mouseX > 630 && mouseX < 750 && mouseY > 560 && mouseY < 590 && currentPage < totalPages - 1) {
+    currentPage++;
+  }
+
+  // Handle heat map button click
+  if (mouseX > 520 && mouseX < 620 && mouseY > 350 && mouseY < 380) {
+    page = 4;  
+  }
+
+  // Handle route chart button click
+  if (mouseX > 640 && mouseX < 740 && mouseY > 350 && mouseY < 380) {
+    page = 5;  
+  }
+
+  // Set input box focus
+  setInputFocus(mouseX, mouseY);
+
+  // Lateness buttons click
   if (mouseX > 80 && mouseX < 180 && mouseY > 350 && mouseY < 380) {
     // On-time
     onTimeSelected = !onTimeSelected;
@@ -524,13 +579,12 @@ void mouseReleased() {
     else println("Filter: Cancelled");
   }
 
-  // 输入框焦点
   setInputFocus(mouseX, mouseY);
 }
 
 
 // -----------------------------------------------------
-// 根据鼠标位置确定哪个输入框获得焦点
+// setInputFocus(): Determine which input field gets focus based on the mouse position
 // -----------------------------------------------------
 void setInputFocus(int mx, int my) {
   // Origin
@@ -561,7 +615,7 @@ void setInputFocus(int mx, int my) {
     isTyping2 = false; 
     isTyping3 = false;
   }
-  // 点击其它区域，取消所有焦点
+  // Click on other areas to unfocus all
   else {
     isTyping1 = false; 
     isTyping2 = false; 
@@ -571,7 +625,7 @@ void setInputFocus(int mx, int my) {
 }
 
 // -----------------------------------------------------
-// 键盘输入
+// keyboard input
 // -----------------------------------------------------
 void keyPressed() {
   if (isTyping1) {
@@ -604,29 +658,11 @@ void keyPressed() {
   }
 }
 
-// -----------------------------------------------------
-// 加载CSV数据
-// -----------------------------------------------------
-void loadFlightData(String filename) {
-  try {
-    String[] lines = loadStrings(filename);
-    if (lines == null || lines.length < 2) {
-      println("Error loading file or empty dataset.");
-      return;
-    }
-    for (int i = 1; i < lines.length; i++) {
-      String[] cols = split(lines[i], ',');
-      if (cols.length >= 18) {
-        flights.add(new Flight(cols));
-      }
-    }
-  } catch (Exception e) {
-    println("Error loading flight data: " + e.getMessage());
-  }
-}
 
 // -----------------------------------------------------
-// 获取筛选后的航班列表 (Origin / Destination / 日期范围)
+// Section 4: Flights Information  Filtering
+// -----------------------------------------------------
+// Get filtered flights list (Origin/Destination/date range)
 // -----------------------------------------------------
 ArrayList<Flight> getFilteredFlights() {
   ArrayList<Flight> filtered = new ArrayList<Flight>();
@@ -667,7 +703,7 @@ ArrayList<Flight> getFilteredFlights() {
 
 
 // -----------------------------------------------------
-// 将 "M/D/YYYY" 转为 int(YYYYMMDD)
+// Convert "M/D/YYYY" to int(YYYYMMDD)
 // -----------------------------------------------------
 int parseDateToInt(String dateStr) {
   String[] parts = split(dateStr, '/');
