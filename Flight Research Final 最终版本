@@ -38,7 +38,6 @@ class Flight {
   }
 }
 
-
 // -----------------------------------------------------
 // Main
 // -----------------------------------------------------
@@ -51,7 +50,6 @@ int flightItemHeight = 30;
 int scrollY = 0;
 
 int page = 1;
-int previousPage = 1; // 新增：记录跳转前的页面，默认值为1
 boolean onTimeSelected = false;
 boolean delayedSelected = false;
 boolean cancelledSelected = false;
@@ -71,6 +69,9 @@ String arriveDateRight = "";
 int focusedField = 0;
 PImage routeMapImage, heatMapImage;
 Flight selectedFlight;
+
+// 记录进入 Heat Map 或 Route Map 页面的上一级页面（page1或page2）
+int previousMapPage = 1;
 
 void setup() {
   size(800, 600);
@@ -130,25 +131,11 @@ void drawWhiteButton(int x, int y, String label, int targetPage) {
   textAlign(LEFT, CENTER);
   text(label, x + 10, y + 12);
 
+  // 若按钮目标为 Heat Map（page 4）或 Route Map（page 5），记录当前页面作为返回页面
   if (mousePressed && mouseX >= x && mouseX <= x + textWidth(label) + 20 && mouseY >= y && mouseY <= y + 24) {
-    page = targetPage;
-  }
-}
-
-// -----------------------------------------------------
-// 新增：Page2 使用的按钮，点击时将 previousPage 设为 2
-// -----------------------------------------------------
-void drawWhiteButtonFromPage2(int x, int y, String label, int targetPage) {
-  fill(255);
-  stroke(180);
-  rect(x, y, textWidth(label) + 20, 24, 6);
-  noStroke();
-  fill(0);
-  textAlign(LEFT, CENTER);
-  text(label, x + 10, y + 12);
-
-  if (mousePressed && mouseX >= x && mouseX <= x + textWidth(label) + 20 && mouseY >= y && mouseY <= y + 24) {
-    previousPage = 2;
+    if (targetPage == 4 || targetPage == 5) {
+      previousMapPage = page;  // 保存当前页面（通常为 page2）
+    }
     page = targetPage;
   }
 }
@@ -174,7 +161,6 @@ void drawToggleButton(int x, int y, String label, boolean selected) {
 // Public method: Draw an input field
 // -----------------------------------------------------
 void drawInputField(int x, int y, int w, int h, String content, boolean focused) {
-  // Change the stroke color to green when the input box gets focus
   stroke(focused ? color(0, 255, 0) : color(0));
   fill(255);
   rect(x, y, w, h, 8);
@@ -212,13 +198,13 @@ void drawSearchCriteria() {
   
   text("Date Range", 80, 230);
   
-  // Fly Date Range Input: three parts (Month, Day, Year), used to filter the file flDate (column A)
+  // Fly Date Range Input: 三部分（Month, Day, Year）
   text("Fly Date Range:", 80, 255);
   drawInputField(225, 240, 40, 30, flyDateLeft, focusedField == 3);
   drawInputField(275, 240, 40, 30, flyDateMid, focusedField == 4);
   drawInputField(325, 240, 70, 30, flyDateRight, focusedField == 5);
   
-  // Arrive Date Range segmented input: three parts, used to filter the arrival date
+  // Arrive Date Range Input: 三部分，与 Fly Date Range 筛选方式一致
   text("Arrive Date Range:", 80, 280);
   drawInputField(250, 270, 40, 30, arriveDateLeft, focusedField == 6);
   drawInputField(300, 270, 40, 30, arriveDateMid, focusedField == 7);
@@ -242,7 +228,6 @@ void drawChartButtons() {
 }
 
 void drawFlightInfoPanel() {
-  // Call the filter function every time you redraw to ensure that the flight list is updated synchronously when the status and date conditions change
   filteredFlights = filterFlights();
   
   drawPanel(flightPanelX, flightPanelY, flightPanelW, flightPanelH, "");
@@ -251,7 +236,6 @@ void drawFlightInfoPanel() {
   int startIndex = scrollY / flightItemHeight;
   int endIndex = min(filteredFlights.size(), startIndex + flightPanelH / flightItemHeight + 1);
   
-  // Record the flight the mouse is hovering over
   Flight hoveredFlight = null;
   
   for (int i = startIndex; i < endIndex; i++) {
@@ -259,7 +243,6 @@ void drawFlightInfoPanel() {
     int yPos = flightPanelY + (i * flightItemHeight - scrollY);
     String flightInfo = f.flDate + "   " + f.mktCarrierFlNum + "    " + f.originCity + " to " + f.destCity;
     
-    // If the mouse is in the display area of the current flight, record the flight and change the background color
     if (mouseX > flightPanelX && mouseX < flightPanelX + flightPanelW &&
         mouseY > yPos && mouseY < yPos + flightItemHeight) {
       fill(200);
@@ -274,22 +257,19 @@ void drawFlightInfoPanel() {
   }
   noClip();
   
-  // If there is a hovered flight, display the tooltip (15 pixels offset from the mouse pointer)
   if (hoveredFlight != null) {
     drawFlightTooltip(hoveredFlight, mouseX + 15, mouseY + 15);
   }
 }
 
-// Draw the tooltip when the mouse is hovering
+// 绘制鼠标悬停提示信息
 void drawFlightTooltip(Flight flight, float x, float y) {
-  // Construct prompt text content
   String tooltipText = "Date: " + flight.flDate + "\n" +
                        "Flight: " + flight.mktCarrierFlNum + "\n" +
                        "From: " + flight.originCity + "\n" +
                        "To: " + flight.destCity + "\n" +
                        "Status: " + getFlightStatus(flight);
   
-  // Split text by line and calculate text box width and height
   String[] lines = split(tooltipText, "\n");
   float maxWidth = 0;
   for (int i = 0; i < lines.length; i++) {
@@ -298,11 +278,10 @@ void drawFlightTooltip(Flight flight, float x, float y) {
       maxWidth = lineWidth;
     }
   }
-  float tooltipWidth = maxWidth + 10;  // 5 pixel margins on each side
+  float tooltipWidth = maxWidth + 10;
   float lineHeight = 18;
-  float tooltipHeight = lines.length * lineHeight + 10;  // 5 pixel margins above and below
+  float tooltipHeight = lines.length * lineHeight + 10;
   
-  // Draw a semi-transparent background frame
   fill(255, 255, 255, 200);
   rect(x, y, tooltipWidth, tooltipHeight, 8);
   
@@ -335,8 +314,7 @@ void drawPage2() {
 
   drawPanelPage2(leftMargin + panelWidth + gap, topMargin, panelWidth, panelHeight, "Origin Information");
   subY = topMargin + subStartOffset;
-  // 点击后跳转至 Heatmap（page 4），来自 Page2，因此使用新函数
-  drawWhiteButtonFromPage2(leftMargin + panelWidth + gap + 10, subY - 10, "Airport Code: " + selectedFlight.originCode, 4);
+  drawWhiteButton(leftMargin + panelWidth + gap + 10, subY - 10, "Airport Code: " + selectedFlight.originCode, 4);
   text("City & State: " + selectedFlight.originCity, leftMargin + panelWidth + gap + 10, subY + subSpacing);
   text("State Abbreviation: " + selectedFlight.originState, leftMargin + panelWidth + gap + 10, subY + 2 * subSpacing);
   text("Region Code: " + selectedFlight.originWac, leftMargin + panelWidth + gap + 10, subY + 3 * subSpacing);
@@ -344,8 +322,7 @@ void drawPage2() {
   int secondRowTop = topMargin + panelHeight + gap;
   drawPanelPage2(leftMargin, secondRowTop, panelWidth, panelHeight, "Dest Information");
   subY = secondRowTop + subStartOffset;
-  // 同样，目的地机场代码按钮来自 Page2
-  drawWhiteButtonFromPage2(leftMargin + 10, subY - 10, "Airport Code: " + selectedFlight.destCode, 4);
+  drawWhiteButton(leftMargin + 10, subY - 10, "Airport Code: " + selectedFlight.destCode, 4);
   text("City & State: " + selectedFlight.destCity, leftMargin + 10, subY + subSpacing);
   text("State Abbreviation: " + selectedFlight.destState, leftMargin + 10, subY + 2 * subSpacing);
   println("Debug - destWac = " + selectedFlight.destWac);
@@ -366,8 +343,7 @@ void drawPage2() {
   text(getFlightStatus(selectedFlight), leftMargin + 120, thirdRowTop + 30);
 
   drawPanelPage2(leftMargin + smallPanelWidth + gap, thirdRowTop, smallPanelWidth, smallPanelHeight, "Distance");
-  // 距离按钮点击后跳转至 Route Map（page 5），来自 Page2，故使用新函数
-  drawWhiteButtonFromPage2(leftMargin + smallPanelWidth + gap + 120, thirdRowTop + 12, selectedFlight.distance + " miles", 5);
+  drawWhiteButton(leftMargin + smallPanelWidth + gap + 120, thirdRowTop + 12, selectedFlight.distance + " miles", 5);
 
   drawBackButtonPage2();
 }
@@ -394,7 +370,6 @@ void drawBackButtonPage2() {
   text("Back", btnX + btnW/2, btnY + btnH/2);
 }
 
-
 void drawPage3() {
   fill(255);
   textSize(32);
@@ -405,12 +380,12 @@ void drawPage3() {
 
 void drawBackButton() {
   if (mouseX > 50 && mouseX < 150 && mouseY > 500 && mouseY < 540) fill(200, 130, 0);
-  else fill(255,165,0);
-  rect(50,520,100,40,8);
+  else fill(255, 165, 0);
+  rect(50, 520, 100, 40, 8);
   fill(0);
   textSize(20);
   textAlign(CENTER, CENTER);
-  text("Back", 100,540);
+  text("Back", 100, 540);
 }
 
 // -----------------------------------------------------
@@ -428,8 +403,7 @@ void drawPage4() {
     text("Error loading Heat Map image.", width / 2, height / 2);
   }
 
-  // 返回按钮：根据 previousPage 返回相应页面
-  drawBackButtonModified();
+  drawBackButton();
 }
 
 // -----------------------------------------------------
@@ -447,26 +421,11 @@ void drawPage5() {
     text("Error loading Route Map image.", width / 2, height / 2);
   }
 
-  // 返回按钮：根据 previousPage 返回相应页面
-  drawBackButtonModified();
-}
-
-// 新增：根据 previousPage 返回不同页面的返回按钮绘制
-void drawBackButtonModified() {
-  // 绘制按钮外观与之前一样
-  if (mouseX > 50 && mouseX < 150 && mouseY > height - 80 && mouseY < height - 40) fill(200,130,0);
-  else fill(255,165,0);
-  rect(50, height - 80, 100, 40, 8);
-  fill(0);
-  textSize(20);
-  textAlign(CENTER, CENTER);
-  text("Back", 100, height - 60);
+  drawBackButton();
 }
 
 // -----------------------------------------------------
 // Section 3: Mouse logics
-// -----------------------------------------------------
-// mousePressed(): Handles buttons click
 // -----------------------------------------------------
 void mousePressed() {
   if (page == 1) {
@@ -508,7 +467,7 @@ void mousePressed() {
     }
     focusedField = 0;
 
-    // Use the filtered flight list to make click judgments
+    // 判断航班列表点击
     if (mouseX > flightPanelX && mouseX < flightPanelX + flightPanelW && mouseY > flightPanelY && mouseY < flightPanelY + flightPanelH) {
       int clickedIndex = (mouseY - flightPanelY + scrollY) / flightItemHeight;
       if (clickedIndex >= 0 && clickedIndex < filteredFlights.size()) {
@@ -518,7 +477,7 @@ void mousePressed() {
       }
     }
 
-    // When clicking the status button, mutually exclusive selections are made and the filter condition updates are triggered at the same time
+    // 状态按钮点击处理
     if (mouseX > 80 && mouseX < 180 && mouseY > 330 && mouseY < 360) {
       onTimeSelected = !onTimeSelected;
       delayedSelected = false;
@@ -533,14 +492,14 @@ void mousePressed() {
       delayedSelected = false;
     }
     
-    // Heatmap and Routemap buttons在Page1
+    // 在 page1，点击 Heatmap 或 Route Map 按钮时，记录 previousMapPage 为 1
     if (mouseX > 520 && mouseX < 620 && mouseY > 330 && mouseY < 360) {
-      previousPage = 1;
+      previousMapPage = 1;
       page = 4;
       return;
     }
     if (mouseX > 640 && mouseX < 740 && mouseY > 330 && mouseY < 360) {
-      previousPage = 1;
+      previousMapPage = 1;
       page = 5;
       return;
     }
@@ -557,12 +516,11 @@ void mousePressed() {
     page = 2;
   }
   
-  // 修改：在Page4与Page5时，返回按钮让页面返回到 previousPage 而非固定返回Page1
+  // 在 page4 和 page5，点击返回按钮后返回到 previousMapPage
   if ((page == 4 || page == 5) && mouseX > 50 && mouseX < 150 && mouseY > height - 80 && mouseY < height - 40) {
-    page = previousPage;
+    page = previousMapPage;
   }
 }
-
 
 void keyPressed() {
   if (focusedField != 0) {
@@ -590,7 +548,6 @@ void keyPressed() {
   }
 }
 
-
 void mouseWheel(MouseEvent event) {
   float e = event.getCount();
   scrollY += e * 10;
@@ -598,26 +555,22 @@ void mouseWheel(MouseEvent event) {
 }
 
 // -----------------------------------------------------
-// Section 4: Flights Information  Filtering
-// -----------------------------------------------------
-// Get filtered flights list (Origin/Destination/date range)
+// Section 4: Flights Information Filtering
 // -----------------------------------------------------
 ArrayList<Flight> filterFlights() {
-  // When the user has input in the Arrive Date Range, filter only by arrival date; otherwise filter by flight date
-  // If the cancel state is selected and there is any input in the Arrive Date Range, an empty list is returned
+  // 如果选中了取消状态且 Arrive Date Range 有输入，则返回空列表
   if (cancelledSelected && (!arriveDateLeft.equals("") || !arriveDateMid.equals("") || !arriveDateRight.equals(""))) {
     return new ArrayList<Flight>();
   }
   
   ArrayList<Flight> result = new ArrayList<Flight>();
-  // Iterate over all flights
   for (Flight f : flights) {
-    // Filter by Origin: If the input box is not empty, determine whether f.originCity contains the input content (ignore case)
+    // 过滤 Origin（忽略大小写匹配）
     boolean matchOrigin = originText.equals("") || f.originCity.toLowerCase().indexOf(originText.toLowerCase()) != -1;
-    // Filter by Destination: If the input box is not empty, determine whether f.destCity contains the input content (ignore case)
+    // 过滤 Destination（忽略大小写匹配）
     boolean matchDest = destinationText.equals("") || f.destCity.toLowerCase().indexOf(destinationText.toLowerCase()) != -1;
     
-    // Filter by status button
+    // 过滤状态按钮
     boolean matchStatus = true;
     if (onTimeSelected) {
       matchStatus = (f.cancelled == 0 && f.diverted == 0);
@@ -627,7 +580,7 @@ ArrayList<Flight> filterFlights() {
       matchStatus = (f.cancelled == 1 && f.diverted == 0);
     }
     
-    // Filter by Fly Date Range (only used when Arrive Date Range is not filled in)
+    // Fly Date Range 筛选
     boolean matchFlyDate = true;
     String[] dateParts = split(f.flDate, "/");
     if (!flyDateLeft.equals("") && dateParts.length >= 1) {
@@ -640,17 +593,9 @@ ArrayList<Flight> filterFlights() {
       matchFlyDate &= dateParts[2].trim().indexOf(flyDateRight.trim()) != -1;
     }
     
-    // Filter by Arrive Date Range
-    // If f.arrTime starts with a single quote, the arrival date is considered to be flDate plus one day; otherwise, f.arrTime is used directly
-    String arrDateStr;
-    if (f.arrTime.startsWith("'")) {
-      arrDateStr = addOneDay(f.flDate);
-    } else {
-      arrDateStr = f.arrTime;
-    }
-    
+    // Arrive Date Range 筛选（修改后：与 Fly Date Range 筛选方式一致，直接使用 f.flDate）
     boolean matchArrDate = true;
-    String[] arrDateParts = split(arrDateStr, "/");
+    String[] arrDateParts = split(f.flDate, "/");
     if (!arriveDateLeft.equals("") && arrDateParts.length >= 1) {
       matchArrDate &= arrDateParts[0].trim().indexOf(arriveDateLeft.trim()) != -1;
     }
@@ -661,10 +606,16 @@ ArrayList<Flight> filterFlights() {
       matchArrDate &= arrDateParts[2].trim().indexOf(arriveDateRight.trim()) != -1;
     }
     
-    // When the user enters an Arrive Date Range, filter only by arrival date; otherwise filter by flight date
+    // 如果 Arrive Date Range 有输入，则：
+    // 1. 如果 Fly Date Range 同时有输入，则要求航班必须同时满足两组条件（取交集），否则视为冲突 -> 不显示任何航班
+    // 2. 如果 Fly Date Range 没有输入，则仅使用 Arrive Date Range 筛选
     boolean dateMatch;
     if (!arriveDateLeft.equals("") || !arriveDateMid.equals("") || !arriveDateRight.equals("")) {
-      dateMatch = matchArrDate;
+      if (!flyDateLeft.equals("") || !flyDateMid.equals("") || !flyDateRight.equals("")) {
+         dateMatch = matchArrDate && matchFlyDate;
+      } else {
+         dateMatch = matchArrDate;
+      }
     } else {
       dateMatch = matchFlyDate;
     }
@@ -682,7 +633,7 @@ String getFlightStatus(Flight f) {
   return "On time";
 }
 
-// Auxiliary method: add one day to the passed date string (format M/d/yyyy) and return the new date string
+// Auxiliary method: 将传入的日期字符串（格式 M/d/yyyy）加一天并返回新日期字符串
 String addOneDay(String dateStr) {
   SimpleDateFormat sdf = new SimpleDateFormat("M/d/yyyy");
   try {
